@@ -183,9 +183,11 @@ skolemise ty  -- Rule PRMONO
 ------------------------------------------
 --      Quantification                  --
 ------------------------------------------
-
-quantify :: [MetaTv] -> Rho -> Tc Sigma
 -- Quantify over the specified type variables (all flexible)
+-- Quantification turns a meta type variable into a concrete type variable,
+-- since no further constraints on its value can possibly arise
+-- `quantify` guarantees to return a type that is fully substituted
+quantify :: [MetaTv] -> Rho -> Tc Sigma
 quantify tvs ty
   = do { mapM_ bind (tvs `zip` new_bndrs)   -- 'bind' is just a cunning way
        ; ty' <- zonkType ty                 -- of doing the substitution
@@ -298,9 +300,11 @@ unifyUnboundVar tv1 ty2
             writeTv tv1 ty2 }
 
 -----------------------------------------
+
+-- Splits a function type, returning the argument & result types
 unifyFun :: Rho -> Tc (Sigma, Rho)
---      (arg,res) <- unifyFunTy fun
--- unifies 'fun' with '(arg -> res)'
+-- The line `(arg,res) <- unifyFunTy fun`
+-- unifies `fun` with `(arg -> res)`
 unifyFun (Fun arg res) = return (arg,res)
 unifyFun tau           = do { arg_ty <- newTyVarTy
                             ; res_ty <- newTyVarTy

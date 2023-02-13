@@ -26,6 +26,7 @@ data Expected a = Infer (IORef a) | Check a
 --      tcRho, and its variants         --
 ------------------------------------------
 
+-- checkRho takes the expected type as an argument
 checkRho :: Term -> Rho -> Tc ()
 -- Invariant: the Rho is always in weak-prenex form
 checkRho expr ty = tcRho expr (Check ty)
@@ -42,16 +43,27 @@ tcRho :: Term -> Expected Rho -> Tc ()
 tcRho (Lit _) exp_ty
   = instSigma intType exp_ty
 
+-- Rule INST
+-- When we reach a Var, look it up in the environment (fails if not in scope),
+-- then instantiate its type w/ fresh meta type variables
+-- then check if the resulting type is compatible w/ the expected type `exp_ty`
 tcRho (Var v) exp_ty
   = do { v_sigma <- lookupVar v
        ; instSigma v_sigma exp_ty }
 
+-- Infer the type of the function,
+-- then type-check the argument by passing in the 
+-- expected type of the argument (derived from the function),
+-- then unify the function's result type w/ the expected result type
 tcRho (App fun arg) exp_ty
   = do { fun_ty <- inferRho fun
        ; (arg_ty, res_ty) <- unifyFun fun_ty
        ; checkSigma arg arg_ty
        ; instSigma res_ty exp_ty }
 
+-- (Rule ABS)
+-- Split the expected type into the type of the bound variables & the type of the body
+-- Then, extend the environment w/ a new binding & check the body 
 tcRho (Lam var body) (Check exp_ty)
   = do { (var_ty, body_ty) <- unifyFun exp_ty
        ; extendVarEnv var var_ty (checkRho body body_ty) }
@@ -70,10 +82,13 @@ tcRho (ALam var var_ty body) (Infer ref)
   = do { body_ty <- extendVarEnv var var_ty (inferRho body)
        ; writeTcRef ref (var_ty --> body_ty) }
 
+-- Type LET (let bindings)
+-- Use inferSigma to infer the (polymorphic) type f rhs
 tcRho (Let var rhs body) exp_ty
   = do { var_ty <- inferSigma rhs
        ; extendVarEnv var var_ty (tcRho body exp_ty) }
 
+-- Handle type-annotated expressions
 tcRho (Ann body ann_ty) exp_ty
    = do { checkSigma body ann_ty
         ; instSigma ann_ty exp_ty }
@@ -83,6 +98,10 @@ tcRho (Ann body ann_ty) exp_ty
 --      inferSigma and checkSigma
 ------------------------------------------
 
+-- Implements the |-^{poly} judgement
+-- getEnvTypes returns a list of all types in the environment Gamma
+-- getMetaTyVars finds the free meta type variables in a list of types
+-- Then, quantify over the list-difference of env_tvs & res_tvs
 inferSigma :: Term -> Tc Sigma
 inferSigma e
    = do { exp_ty <- inferRho e
@@ -106,9 +125,10 @@ checkSigma expr sigma
 --      Subsumption checking            --
 ------------------------------------------
 
+-- Implements the |-^{sh} judgement
+-- `subsCheck args off exp` checks that
+-- `off` is at least as polymorphic as `args -> exp`
 subsCheck :: Sigma -> Sigma -> Tc ()
--- (subsCheck args off exp) checks that
---     'off' is at least as polymorphic as 'args -> exp'
 
 subsCheck sigma1 sigma2        -- Rule DEEP-SKOL
   = do { (skol_tvs, rho2) <- skolemise sigma2
@@ -142,6 +162,7 @@ subsCheckFun :: Sigma -> Rho -> Sigma -> Rho -> Tc ()
 subsCheckFun a1 r1 a2 r2
   = do { subsCheck a2 a1 ; subsCheckRho r1 r2 }
 
+-- Implements the judgement |-^{inst}
 instSigma :: Sigma -> Expected Rho -> Tc ()
 -- Invariant: if the second argument is (Check rho),
 --            then rho is in weak-prenex form
