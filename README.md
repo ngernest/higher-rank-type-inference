@@ -8,9 +8,9 @@ types.  There are the following files:
 
   TcTerm.lhs	   The main type inference engine
 
-  TcMonad.lhs	   The type inference monad
+  TcMonad.lhs	   The type inference monad Tc (section 5.2)
 
-  BasicTypes.lhs   Data type declarations, for terms and types
+  BasicTypes.lhs   Data type declarations, for terms and types (section 5.1)
 
   Parser.lhs	   A simple combinator parser
 

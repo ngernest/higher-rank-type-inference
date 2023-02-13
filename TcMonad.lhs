@@ -27,6 +27,9 @@ import Data.List( nub, (\\) )
 --      The monad itself                --
 ------------------------------------------
 
+-- The type-checker monad
+-- Maintains a single, ever-growing substitution that meaps meta type variables 
+-- MetaTyVars to monotypes (doesn't affect concrete type variables)
 data TcEnv
   = TcEnv { uniqs   :: IORef Uniq,         -- Unique supply
             var_env :: Map.Map Name Sigma  -- Type environment for term variables
@@ -62,9 +65,12 @@ instance Monad Tc where
                                   Left err -> return (Left err)
                                   Right v  -> unTc (k v) env })
 
+-- Support exceptions when type inference fails
 failTc :: Doc -> Tc a   -- Fail unconditionally
 failTc d = fail (docToString d)
 
+-- If argument is False, raise an exception in the monad, 
+-- passing the specified string as an error message
 check :: Bool -> Doc -> Tc ()
 check True  _ = return ()
 check False d = failTc d
@@ -97,15 +103,18 @@ writeTcRef r v = lift (writeIORef r v)
 --      Dealing with the type environment       --
 --------------------------------------------------
 
+-- Extend the type environment
 extendVarEnv :: Name -> Sigma -> Tc a -> Tc a
 extendVarEnv var ty (Tc m)
   = Tc (\env -> m (extend env))
   where
     extend env = env { var_env = Map.insert var ty (var_env env) }
 
+-- Get all types in the type environment
 getEnv :: Tc (Map.Map Name Sigma)
 getEnv = Tc (\ env -> return (Right (var_env env)))
 
+-- Lookup in the type environment
 lookupVar :: Name -> Tc Sigma    -- May fail
 lookupVar n = do { env <- getEnv
                  ; case Map.lookup n env of
@@ -121,6 +130,7 @@ newTyVarTy :: Tc Tau
 newTyVarTy = do { tv <- newMetaTyVar
                 ; return (MetaTv tv) }
 
+-- Allocate fresh meta type variables
 newMetaTyVar :: Tc MetaTv
 newMetaTyVar = do { uniq <- newUnique
                   ; tref <- newTcRef Nothing
@@ -236,6 +246,9 @@ zonkType (MetaTv tv)    -- A mutable type variable
 --      Unification                     --
 ------------------------------------------
 
+-- Maintain a global, ever-growing substitution that supports unification
+-- `unify t1 t2` extends the substitution so that `t1` & `t2` are identical
+-- Unification may fail!
 unify :: Tau -> Tau -> Tc ()
 
 unify ty1 ty2

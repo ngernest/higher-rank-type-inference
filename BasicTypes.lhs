@@ -46,18 +46,24 @@ type Sigma = Type
 type Rho   = Type -- No top-level ForAll
 type Tau   = Type -- No ForAlls anywhere
 
-data Type = ForAll [TyVar] Rho -- Forall type
+-- Represents sigma, rho and tau-types
+data Type = ForAll [TyVar] Rho -- ForAll type
     | Fun    Type Type      -- Function type
     | TyCon  TyCon          -- Type constants
     | TyVar  TyVar          -- Always bound by a ForAll
     | MetaTv MetaTv         -- A meta type variable
 
+-- Concrete type variables (a, b, etc.)
 data TyVar
-  = BoundTv String  -- A type variable bound by a ForAll
+  = BoundTv String  -- A type variable *bound* by a ForAll
 
-  | SkolemTv String Uniq  -- A skolem constant; the String is
-                          -- just to improve error messages
+  | SkolemTv String Uniq  -- A skolem constant
+                          -- (unknown type, represented with a unique integer); 
+                          -- the String is just to improve error messages
 
+-- Meta type variables (tau, sigma, etc.)
+-- Never quantified by a ForAll 
+-- We use Uniq to denote the identity of a MetaTv
 data MetaTv = Meta Uniq TyRef  -- Can unify with any tau-type
 
 type TyRef = IORef (Maybe Tau)
@@ -79,6 +85,8 @@ data TyCon = IntT | BoolT
 ---------------------------------
 --      Constructors
 
+-- The (-->) allows us to construct a function type without knowing 
+-- how it's represented internally
 (-->) :: Sigma -> Sigma -> Sigma
 arg --> res = Fun arg res
 
