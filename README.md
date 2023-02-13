@@ -2,17 +2,20 @@
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is a small but complete implementation of type inference for higher-rank
-types.  There are the following files:
+types, as discussed in the paper "Practical type inference for arbitrary-rank types"
+(Peyton Jones, Vytiniotis, Weirich & Shields, 2007).         
 
-  `Main.lhs`:	   Test harness
+This repo contains the following files:         
 
-  `TcTerm.lhs`:	   The main type inference engine
+- `Main.lhs`:	   Test harness
 
-  `TcMonad.lhs`:	   The type inference monad Tc (section 5.2)
+- `TcTerm.lhs`:	   The main type inference engine
 
-  `BasicTypes.lhs`:   Data type declarations, for terms and types (section 5.1)
+- `TcMonad.lhs`:	   The type inference monad Tc (section 5.2)
 
-  `Parser.lhs`:	   A simple combinator parser
+- `BasicTypes.lhs`:   Data type declarations, for terms and types (section 5.1)
+
+- `Parser.lhs`:	   A simple combinator parser
 
 
 
