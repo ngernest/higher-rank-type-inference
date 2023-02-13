@@ -57,6 +57,8 @@ instance Applicative Tc where
                                                        Left err -> return (Left err)
                                                        Right x2 -> return (Right (f2 x2)) } })
 
+-- Tc Monad is the IO monad augmented with a type environment 
+-- & a way to report failure
 instance Monad Tc where
    return x = Tc (\_env -> return (Right x))
    fail err = Tc (\_env -> return (Left (text err)))
@@ -84,9 +86,9 @@ runTc binds (Tc tc)
        ; tc env }
   where
 
-lift :: IO a -> Tc a
 -- Lift a state transformer action into the typechecker monad
--- ignores the environment and always succeeds
+-- (ignores the environment and always succeeds)
+lift :: IO a -> Tc a
 lift st = Tc (\_env -> do { r <- st; return (Right r) })
 
 newTcRef :: a -> Tc (IORef a)
@@ -157,19 +159,18 @@ newUnique = Tc (\ (TcEnv {uniqs = ref}) ->
 ------------------------------------------
 --      Instantiation                   --
 ------------------------------------------
-
-instantiate :: Sigma -> Tc Rho
 -- Instantiate the topmost for-alls of the argument type
 -- with flexible type variables
+instantiate :: Sigma -> Tc Rho
 instantiate (ForAll tvs ty)
   = do { tvs' <- mapM (\_ -> newMetaTyVar) tvs
        ; return (substTy tvs (map MetaTv tvs') ty) }
 instantiate ty
   = return ty
 
+-- Performs deep skolemisation, returning fresh concrete type variables 
+-- (i.e. skolem constants) along with the skolemised (instantiated) type
 skolemise :: Sigma -> Tc ([TyVar], Rho)
--- Performs deep skolemisation, retuning the
--- skolem constants and the skolemised type
 skolemise (ForAll tvs ty)  -- Rule PRPOLY
   = do { sks1 <- mapM newSkolemTyVar tvs
        ; (sks2, ty') <- skolemise (substTy tvs (map TyVar sks1) ty)

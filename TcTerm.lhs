@@ -130,10 +130,13 @@ checkSigma expr sigma
 -- `off` is at least as polymorphic as `args -> exp`
 subsCheck :: Sigma -> Sigma -> Tc ()
 
+-- Here, skolemise performs the alpha-renaming of sigma2 & 
+-- returns fresh concrete ype 
 subsCheck sigma1 sigma2        -- Rule DEEP-SKOL
   = do { (skol_tvs, rho2) <- skolemise sigma2
        ; subsCheckRho sigma1 rho2
        ; esc_tvs <- getFreeTyVars [sigma1,sigma2]
+       -- Ensure that the skolemised variables aren't free
        ; let bad_tvs = filter (`elem` esc_tvs) skol_tvs
        ; check (null bad_tvs)
                (vcat [text "Subsumption check failed:",

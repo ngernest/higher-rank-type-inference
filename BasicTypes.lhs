@@ -62,9 +62,13 @@ data TyVar
                           -- the String is just to improve error messages
 
 -- Meta type variables (tau, sigma, etc.)
--- Never quantified by a ForAll 
 -- We use Uniq to denote the identity of a MetaTv
-data MetaTv = Meta Uniq TyRef  -- Can unify with any tau-type
+-- A MetaTv has a unique identity (an Int) & a mutable ref cell of type TyRef
+data MetaTv = Meta Uniq TyRef  
+
+-- Invariant: a meta type variable can only be subsittuted by a Tau type
+-- (i.e. a monotype). This ensures that the result of type inference doesn't
+-- depend on the order of type inference. 
 
 type TyRef = IORef (Maybe Tau)
         -- 'Nothing' means the type variable is not substituted
